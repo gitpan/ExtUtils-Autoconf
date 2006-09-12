@@ -14,11 +14,11 @@ ExtUtils::Autoconf - Perl interface to GNU autoconf
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -26,7 +26,7 @@ our $VERSION = '0.01';
 
     my $ac = ExtUtils::Autoconf->new;
 
-    $ac->reconf;
+    $ac->autogen;
     $ac->configure;
 
     $ac->clean;
@@ -83,7 +83,7 @@ After our tests we do C<AC_OUTPUT> to write our results to C<config.h>.
 That's it for the C<configure.ac> part. Now include the C<autoconf/config.h>
 file in your C or C++ code of the module and use the defines in there.
 
-=head2 MAKEFILE.PL
+=head2 Makefile.PL
 
 Execute the configure script which will be generated from the above
 C<configure.ac> when someone tries to build your module you'll need to modify
@@ -93,36 +93,34 @@ It's better to assume that the user of your module doesn't have autoconf and
 autoheader installed so you need to generate C<configure> and C<config.h>
 before rolling your distribution together.
 
+=head3 ExtUtils::MakeMaker
+
 This is easily done by using the C<dist> target of your generated Makefile:
 
-    package MY;
-
-    sub dist_core {
-        my $self = shift;
-
-        my $inherited = $self->SUPER::dist_core(@_);
-        $inherited =~ s/^(dist\s*:\s*)/$1autogen /m;
-
-        return $inherited;
-    }
-
-    sub postamble {
-        return <<"EOM";
-    autogen :
-    \t\$(PERLRUN) -MExtUtils::Autoconf -e 'ExtUtils::Autoconf->run_autogen'
-    EOM
-    }
+    WriteMakefile(
+        # usual arguments to WriteMakefile()..
+        dist => {
+            PREOP => q{$(PERLRUN) -MExtUtils::Autoconf -e'ExtUtils::Autoconf->run_autogen'},
+        },
+    );
 
 B<autogen()> and B<configure()> automatically generate some files. To clean
-those up automatically when doing C<make clean> or C<make realclean> extend the
-postamble section like that:
+those up automatically when doing C<make clean> or C<make realclean> you can
+use MakeMakers postamble feature. We also add some additional Makefile targets
+for the ease of use:
 
     sub postamble {
         return <<"EOM";
     autogen :
     \t\$(PERLRUN) -MExtUtils::Autoconf -e 'ExtUtils::Autoconf->run_autogen'
 
-    realclean ::
+    configure :
+    \t\$(PERLRUN) -MExtUtils::Autoconf -e'ExtUtils::Autoconf->run_configure'
+
+    autoclean :
+    \t\$(PERLRUN) -MExtUtils::Autoconf -e'ExtUtils::Autoconf->run_realclean'
+
+    realclean purge ::
     \t\$(PERLRUN) -MExtUtils::Autoconf -e 'ExtUtils::Autoconf->run_realclean'
 
     clean ::
@@ -159,6 +157,11 @@ C<Makefile.PL>:
 The C<if> condition covers those cases where ExtUtils::Autoconf isn't installed
 yet. I'll raise a fatal error which will hopefully tell CPAN to install it and
 rerun C<Makefile.PL>.
+
+=head3 Module::Install
+
+If you're using L<Module::Install> for your Makefile.PL, you can simply install
+L<Module::Install::Autoconf> and do B<configure()> in it.
 
 =head1 SUBROUTINES/METHODS
 
@@ -272,7 +275,7 @@ sub _process_args {
     $ac->configure;
 
 Runs the configure script. If the configure script doesn't exist yet it'll run
-B<reconf()>.  Returns 1 on success or croaks on failure.
+B<autogen()>.  Returns 1 on success or croaks on failure.
 
 =cut
 
@@ -282,7 +285,7 @@ sub configure {
     my $configure = 'configure';
 
     if (!-x File::Spec->catfile($self->wd, $configure)) {
-        $self->reconf;
+        $self->autogen;
     }
 
     if (!$self->_run_cmd("./$configure", '--prefix='. "\Q$Config{prefix}\E")) {
@@ -297,26 +300,28 @@ sub configure {
     return 1;
 }
 
-=head2 reconf
+=head2 autogen
 
-    $ac->reconf;
+    $ac->autogen;
 
 Runs autoheader and autoconf to generate config.h.in and configure from
 configure.ac or configure.in. Returns 1 on success or croaks on failure.
 
 =cut
 
-sub reconf {
+sub autogen {
     my ($self) = @_;
 
     my $ret = $self->_run_cmd($self->autoheader) && $self->_run_cmd($self->autoconf);
     if (!$ret) {
         require Carp;
-        Carp::croak('reconf failed. check the error messages above.');
+        Carp::croak('autogen failed. check the error messages above.');
     }
 
     return 1;
 }
+
+*reconf = \&autogen; #compat
 
 =head2 clean
 
@@ -343,7 +348,7 @@ sub clean {
 
     my $success = $ac->realclean;
 
-Cleans up files which were generated during B<reconf()> and B<configure()>.
+Cleans up files which were generated during B<autogen()> and B<configure()>.
 Always returns something true.
 
 =cut
@@ -521,7 +526,7 @@ sub run_autogen {
     my $ac = $class->new;
     $ac->_process_argv;
 
-    $ac->reconf;
+    $ac->autogen;
 }
 
 =head2 run_clean
@@ -580,7 +585,7 @@ sub _process_argv {
 Running ./configure failed. Diagnostic messages may be found in the according
 config.log file.
 
-=item C<reconf failed. check the error messages above.>
+=item C<autogen failed. check the error messages above.>
 
 Running autoheader or autoconf failed. Probably your C<configure.ac> is
 erroneous. Try running autoheader and autoconf manually.

@@ -25,27 +25,28 @@ WriteMakefile(
     PREREQ_PM => {
         'Test::More' => 0,
     },
-    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    dist                => {
+        COMPRESS => 'gzip -9f',
+        SUFFIX   => 'gz',
+        PREOP    => q{$(PERLRUN) -MExtUtils::Autoconf -e'ExtUtils::Autoconf->run_autogen'},
+    },
     clean               => { FILES => 'Foo-Bar-*' },
 );
 
 package MY;
-
-sub dist_core {
-    my $self = shift;
-
-    my $inherited = $self->SUPER::dist_core(@_);
-    $inherited =~ s/^(dist\s*:\s*)/$1autogen /im;
-
-    return $inherited;
-}
 
 sub postamble {
     return <<"EOM";
 autogen :
 \t\$(PERLRUN) -MExtUtils::Autoconf -e 'ExtUtils::Autoconf->run_autogen'
 
-realclean ::
+configure :
+\t\$(PERLRUN) -MExtUtils::Autoconf -e'ExtUtils::Autoconf->run_configure'
+
+autoclean :
+\t\$(PERLRUN) -MExtUtils::Autoconf -e'ExtUtils::Autoconf->run_realclean'
+
+realclean purge ::
 \t\$(PERLRUN) -MExtUtils::Autoconf -e 'ExtUtils::Autoconf->run_realclean'
 
 clean ::

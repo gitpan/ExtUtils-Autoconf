@@ -14,8 +14,8 @@ use ExtUtils::Autoconf;
     isa_ok( $ac, 'ExtUtils::Autoconf' );
 
     lives_ok(sub {
-            $ac->reconf;
-    }, 'reconf');
+            $ac->autogen;
+    }, 'autogen');
 
     ok( -f 't/autoconf/config.h.in', 'config.h.in exists' );
     ok( -f 't/autoconf/configure', 'configure exists' );
@@ -124,7 +124,7 @@ use ExtUtils::Autoconf;
 
     lives_ok(sub {
             $ac->configure;
-    }, 'configure succeeds even if reconf() didn\'t run before');
+    }, 'configure succeeds even if autogen() didn\'t run before');
 
     ok( -f 't/autoconf/config.h.in', 'config.h.in exists' );
     ok( -f 't/autoconf/configure', 'configure exists' );
@@ -173,7 +173,7 @@ use ExtUtils::Autoconf;
     isa_ok( $ac, 'ExtUtils::Autoconf' );
 
     dies_ok(sub {
-            $ac->reconf;
+            $ac->autogen;
     }, 'dies with invalid configure.ac');
 
     lives_ok(sub {

@@ -26,6 +26,7 @@ t/autoconf_bad_autoheader/configure.ac
 t/autoconf_bad_configure/configure.ac
 t/basic.t
 t/class.t
+t/compat.t
 t/kwalitee.t
 t/notabs.t
 t/pod-coverage.t
